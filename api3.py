@@ -6,7 +6,9 @@ import io
 from PIL import Image, ImageDraw, ImageFont
 from collections import defaultdict
 import textwrap
-
+from IPython.display import HTML
+from io import BytesIO
+import struct
 
 f=open('C:\\uc\\uclib\\credentials.txt', 'r')
 lines = f.readlines()
@@ -46,9 +48,11 @@ for i in range(len(json_string['entries'])):
             for k in range(len(json_string['entries'][i]['bib']['varFields'][j]['subfields'])):
                 syndetics[(json_string['entries'][i]['bib']['id'],json_string['entries'][i]['bib']['title'],json_string['entries'][i]['bib']['author'])].append(json_string['entries'][i]['bib']['varFields'][j]['subfields'][k]['content'])
 
+image_array=[]
 for key,value in syndetics.items():
     count=0
     for i in range(len(value)):
+        
         response = requests.get('http://www.syndetics.com/index.php?isbn='+str(value[i])+'/lc.jpg')
         if(bytes('large cover image', 'utf-8') in response.content):
             count+=1
@@ -56,7 +60,10 @@ for key,value in syndetics.items():
             # print("yes cover")
             image_bytes = io.BytesIO(response.content)
             img = PIL.Image.open(image_bytes)
-            img.show()
+            #img.show()
+            image_array.append(['http://www.syndetics.com/index.php?isbn='+str(value[i])+'/lc.jpg',key[0]])
+            #image_array.append(image_bytes)
+            #image_array.append(img)
             break
         if(count==len(value)):
             # print("No cover Module")
@@ -76,41 +83,85 @@ for key,value in syndetics.items():
             # w, h = d.textsize(para)
             # ((W-w)/2,(H-h)/2)
             # d.text((250,120), msg , font=fnt, fill=(255, 255, 0))
-            img.show()
+            #img.show()
+            arb="./"
+            path=arb+str(json_string['entries'][i]['bib']['id'])+".png"
+            img.save(path) 
+            image_array.append([path,key[0]])
             
+# from IPython.display import Image as img_ipy     
+# def _src_from_data(data):
+    #str = base64.b64encode(imageFile.read())
+#     data_uri = base64.b64encode(Image.fromarray(data)).decode('utf-8')
+#     img_tag = '<img src="data:image/png;base64,{0}">'.format(data_uri)
+#     return img_tag
+#     """Base64 encodes image bytes for inclusion in an HTML img element"""
+#     data=data.tobytes()
+#     data_uri = base64.b64encode(Image.fromarray(data)).decode('utf-8')
+#     img_tag = '<img src="data:image/png;base64,{0}">'.format(data_uri)
+#     return img_tag
+    #print(data)
+    #print("\n")
+    #print("**************************************************")
+#     data=data.tobytes()
+#     data_uri = data.read().encode('base64').replace('\n', '')
+#     return f'<img src="data:image/png;base64,{0}" width="400" height="275">'.format(data_uri)
+#     #print("\n")
+#     #print(data)
+#     def convert_string_to_bytes(string):
+#         bytes = b''
+#         for i in string:
+#             bytes += struct.pack("B", ord(i))
+#         return bytes
+#     stream = BytesIO(convert_string_to_bytes(data))
+#     image = Image.open(stream).convert("RGBA")
+#     stream.close()
+# #     image.show()
+#     img_obj = img_ipy(data=data)
+#     for bundle in img_obj._repr_mimebundle_():
+#         for mimetype, b64value in bundle.items():
+#             #if mimetype.startswith('image/'):
+#             return f'data:{mimetype};base64,{b64value}'
+#     data_uri = base64.b64encode(open(str(data), 'rb').read()).decode('utf-8')
+#     img_tag = '<img src="data:image/png;base64,{0}">'.format(data_uri)
+#     return img_tag
             
-# for i in range(len(json_string['entries'])):
-#     for j in range(len(json_string['entries'][i]['bib']['varFields'])):
-#         if(json_string['entries'][i]['bib']['varFields'][j]['fieldTag']=='i'):
-#             for k in range(len(json_string['entries'][i]['bib']['varFields'][j]['subfields'])):
-#                 syndetics[json_string['entries'][i]['bib']['varFields'][j]['subfields'][k]['content']]=syndetics.get(json_string['entries'][i]['bib']['varFields'][j]['subfields'][k]['content'],0)+1
-# arr=[]
-# for key in syndetics:
-#     if(key.isdigit()):
-#         arr.append(key)
+def gallery(images, row_height='150px'):
+    """Shows a set of images in a gallery that flexes with the width of the notebook.
+    
+    Parameters
+    ----------
+    images: list of str or bytes
+        URLs or bytes of images to display
 
-# with open('C:\\uc\\uclib\\isbn.txt', 'w') as txt_file:
-#     for line in arr:
-#         txt_file.write(line + "\n")
-        
-# for i in arr:
-#     response = requests.get('http://www.syndetics.com/index.php?isbn='+str(i)+'/lc.jpg')
-#     if(bytes('large cover image', 'utf-8') in response.content):
-#         # print("No cover")
-#         W=800
-#         H=300
-#         msg="Image Not Available"
-#         img = Image.new('RGB', (W, H), color = (73, 109, 137))       
-#         fnt = ImageFont.truetype('C:\\uc\\uclib\\isbn.txt\\arial.ttf', 30)
-#         d = ImageDraw.Draw(img)
-#         w, h = d.textsize(msg)
-#         # ((W-w)/2,(H-h)/2)
-#         d.text((250,120), msg , font=fnt, fill=(255, 255, 0))
-#         img.show()
-#     else:
-#         # print("yes cover")
-#         image_bytes = io.BytesIO(response.content)
-#         img = PIL.Image.open(image_bytes)
-#         img.show()
-#print(r1)
-#print(data1)
+    row_height: str
+        CSS height value to assign to all images. Set to 'auto' by default to show images
+        with their native dimensions. Set to a value like '250px' to make all rows
+        in the gallery equal height.
+    """
+    figures = []
+    for image1 in images:
+        #image1.show()
+        #print(type(image1))
+        reference="http://uclid.uc.edu.proxy.libraries.uc.edu/record=b"+str(image1[1])+"~S39"
+        if '.png' in image1[0]:
+            #print("entered if")
+            src = image1[0]
+            #print(image1[1])
+            #print(src)
+        else:
+            #print("entered else")
+            src = image1[0]
+        figures.append(f'''
+            <figure style="margin: 5px !important;">
+              <a href = '{reference}'>
+              <img src='{src}' style='height: {row_height}'></a>
+            </figure>
+        ''')
+    return HTML(data=f'''
+        <div style="display: flex; flex-flow: row wrap; text-align: center;">
+        {''.join(figures)}
+        </div>
+    ''')
+
+gallery(image_array, row_height='150px')
