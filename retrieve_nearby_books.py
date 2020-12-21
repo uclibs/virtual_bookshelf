@@ -15,23 +15,21 @@ There are two steps for getting a response using sierra API
         1) Authenticating with the Patron API
         2) Making a Sierra API call
 """
-def load_client_key():
+def load_client_key(file_path):
     #Step1
     #Loading Client key and secret key from the file
-    f=open('C:\\uc\\uclib\\credentials.txt', 'r')
+    f=open(file_path, 'r')
     lines = f.readlines()
 
     user=lines[0].replace('\n','')
     pwd=lines[1].replace('\n','')
     
     #Combining the API key and secret into a single string separated by a colon:
-    comb = user+':'+pwd
-    return comb
+    return user+':'+pwd
 
 def generate_encoded_key(combined_clientkey_secretkey):
     #Converting the combined key:secret string into a Base64 string
-    comb_enc = base64.b64encode(bytes(combined_clientkey_secretkey, 'utf-8')).decode("utf-8")
-    return comb_enc
+    return base64.b64encode(bytes(combined_clientkey_secretkey, 'utf-8')).decode("utf-8")
 
 def authorize_api(combined_key_encrypted):
     #Setting the Header name field to authorization.
@@ -42,14 +40,12 @@ def authorize_api(combined_key_encrypted):
     }
 
     #Set the method to POST
-    r_step1 = requests.post('https://uclid.uc.edu:443/iii/sierra-api/v5/token', headers=headers)
-    data = r_step1.json()
+    data = requests.post('https://uclid.uc.edu:443/iii/sierra-api/v5/token', headers=headers).json()
 
     #Here we will store the access_token in a variable named myToken
-    myToken = data['access_token']
-    return myToken
+    return data['access_token']
 
-def call_api_search(my_accessToken):
+def call_api_search(api_string, my_accessToken):
     #Step2
     #We will use the captured access token to make our API call
     #Setting the Header value field to Bearer, and inserting the access token
@@ -59,18 +55,17 @@ def call_api_search(my_accessToken):
     }
 
     #Set the method to GET and capture the json response into a variable
-    r_step2 = requests.get('https://uclid.uc.edu:443/iii/sierra-api/v5/bibs/search?fields=id%2Ctitle%2Cauthor%2CvarFields&text=PS3616.U%3F%3F%3F%3F', headers=headers1)
-    json_string = r_step2.json()
-    return json_string
+    return requests.get(api_string, headers=headers1).json()
 
-"""
+
+def get_book_metadata(json_response):
+    """
     Creating a hashmap named syndetics for our application where:
         key : (bib id, title of book, authors of book)
         value :  [Array of subfields parameter of the json response where fieldTag of a particular book is 'i']
         
     After creating an empty hash map we will loop through the json response obtained to fill the hashmap
-"""
-def get_book_metadata(json_response):
+    """
     syndetics=defaultdict(list)
 
     #Loading data into the syndetics hashmap
@@ -82,7 +77,9 @@ def get_book_metadata(json_response):
 
     return syndetics
 
-"""
+
+def generate_book_covers(dictionary_response, font_path):
+    """
     Here in the following code we will loop through value array of each key.
     Since ISBN numbers are stored in the value array, we will loop through them
     If we were able to get image for atleast one ISBN number in the array while traversing through the value array
@@ -101,8 +98,7 @@ def get_book_metadata(json_response):
     If we have manually generated an image, then the manually generated image is stored in a temporary location locally 
     and the [path, corresponding bib number] is appended into the image_array
     
-"""
-def generate_book_covers(dictionary_response):
+    """
     image_array=[]
     for key,value in dictionary_response.items():
         count=0
@@ -122,7 +118,7 @@ def generate_book_covers(dictionary_response):
                 msg="\n"+"Title: "+str(key[1])+"\n"+"Author: "+str(key[2])
                 para = textwrap.wrap(msg, width=15)
                 img = Image.new('RGB', (W, H), color = (73, 109, 137))       
-                fnt = ImageFont.truetype('C:\\uc\\uclib\\isbn.txt\\arial.ttf', 26)
+                fnt = ImageFont.truetype(font_path, 26)
                 d = ImageDraw.Draw(img)
                 current_h, pad = 50, 10
                 for line in para:
@@ -136,7 +132,7 @@ def generate_book_covers(dictionary_response):
     return image_array
             
             
-def gallery(url_path_arrary, row_height='150px'):
+def gallery(url_path_arrary, limit, row_height='150px'):
     """Shows a set of images of the books that sits next to each other within the width of the notebook.
     
     Parameters
@@ -152,25 +148,32 @@ def gallery(url_path_arrary, row_height='150px'):
     returning the HTML template
     """
     figures = []
+    count=0
     for image in url_path_arrary:
-        reference="http://uclid.uc.edu.proxy.libraries.uc.edu/record=b"+str(image[1])+"~S39"
-        src = image[0]
-        figures.append(f'''
-            <figure style="margin: 5px !important;">
-              <a href = '{reference}'>
-              <img src='{src}' style='height: {row_height}'></a>
-            </figure>
-        ''')
+        if(count<limit):
+            reference="http://uclid.uc.edu.proxy.libraries.uc.edu/record=b"+str(image[1])+"~S39"
+            src = image[0]
+            figures.append(f'''
+                <figure style="margin: 5px !important;">
+                  <a href = '{reference}'>
+                  <img src='{src}' style='height: {row_height}'></a>
+                </figure>
+            ''')
+            count+=1
     return HTML(data=f'''
         <div style="display: flex; flex-flow: row wrap; text-align: center;">
         {''.join(figures)}
         </div>
     ''')
 
-combined_clientkey_secretkey = load_client_key()
+file_path = 'C:\\uc\\uclib\\credentials.txt'
+font_path = 'C:\\uc\\uclib\\isbn.txt\\arial.ttf'
+api_string = 'https://uclid.uc.edu:443/iii/sierra-api/v5/bibs/search?fields=id%2Ctitle%2Cauthor%2CvarFields&text=PS3616.U%3F%3F%3F%3F'
+combined_clientkey_secretkey = load_client_key(file_path)
 combined_key_encrypted = generate_encoded_key(combined_clientkey_secretkey)
 my_accessToken = authorize_api(combined_key_encrypted)
-json_response = call_api_search(my_accessToken)
+json_response = call_api_search(api_string, my_accessToken)
 dictionary_response = get_book_metadata(json_response)
-url_path_arrary = generate_book_covers(dictionary_response)
-gallery(url_path_arrary, row_height='150px')
+url_path_arrary = generate_book_covers(dictionary_response, font_path)
+number_of_images_to_display = 5
+gallery(url_path_arrary, number_of_images_to_display, row_height='150px')
