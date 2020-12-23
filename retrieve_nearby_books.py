@@ -115,7 +115,7 @@ def generate_book_covers(dictionary_response, font_path):
             if(count==len(value)):
                 W=200
                 H=300
-                msg="\n"+"Title: "+str(key[1])+"\n"+"Author: "+str(key[2])
+                msg="\n"+str(key[1])+"\n"+"by "+str(key[2])
                 para = textwrap.wrap(msg, width=15)
                 img = Image.new('RGB', (W, H), color = (73, 109, 137))       
                 fnt = ImageFont.truetype(font_path, 26)
@@ -175,5 +175,5 @@ my_accessToken = authorize_api(combined_key_encrypted)
 json_response = call_api_search(api_string, my_accessToken)
 dictionary_response = get_book_metadata(json_response)
 url_path_arrary = generate_book_covers(dictionary_response, font_path)
-number_of_images_to_display = 5
+number_of_images_to_display = 30
 gallery(url_path_arrary, number_of_images_to_display, row_height='150px')
